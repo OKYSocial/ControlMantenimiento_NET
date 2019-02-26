@@ -1,0 +1,718 @@
+CREATE DATABASE [controlmantenimientodb]
+
+GO
+USE [controlmantenimientodb]
+
+GO
+CREATE TABLE OPERARIOS(
+	DOCUMENTO varchar(10) NOT NULL PRIMARY KEY,
+	NOMBRES varchar(25) NOT NULL,
+	APELLIDOS varchar(25) NOT NULL,
+	TELEFONO varchar(10) NOT NULL,
+	CORREO varchar(50) NULL,
+	CLAVE varbinary(8000) NOT NULL,
+	PERFIL smallint NOT NULL DEFAULT 3,
+	FOTO varchar(50) NULL,
+	INGRESADOPOR varchar(10) NOT NULL,
+	MODIFICADOPOR varchar(10) NOT NULL,
+	FECHAINGRESO smalldatetime NOT NULL DEFAULT getdate(),
+	FECHAMODIFICACION smalldatetime NOT NULL DEFAULT getdate()
+)
+
+GO
+CREATE TABLE LISTAVALORES(
+	CODIGO int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+	NOMBRE varchar(50) NOT NULL,
+	DESCRIPCION varchar(255) NULL,
+	TIPO varchar(50) NOT NULL,
+	INGRESADOPOR varchar(10) NOT NULL,
+	FECHAINGRESO smalldatetime NOT NULL DEFAULT (getdate()),
+	MODIFICADOPOR varchar(10) NOT NULL,
+	FECHAMODIFICACION smalldatetime NOT NULL DEFAULT (getdate())
+)
+
+GO
+CREATE TABLE RESPALDO(
+	CODIGOEQUIPO int NOT NULL,
+	DOCUMENTO varchar(10) NOT NULL,
+	FECHA smalldatetime NOT NULL,
+	OBSERVACIONES varchar(255) NULL,
+	INGRESADOPOR varchar(10) NOT NULL,
+	FECHAINGRESO smalldatetime NOT NULL DEFAULT (getdate()),
+	MODIFICADOPOR varchar(10) NOT NULL,
+	FECHAMODIFICACION smalldatetime NOT NULL DEFAULT (getdate())
+)  
+
+GO
+CREATE TABLE EQUIPOS(
+	CODIGOEQUIPO int IDENTITY(1,1) NOT NULL PRIMARY KEY,
+	NOMBREEQUIPO varchar(50) NOT NULL,
+	CODIGOMARCA int NOT NULL,
+	SERIE varchar(20) NOT NULL,
+	CODIGOLINEA int NOT NULL,
+	LUBRICACION bit NOT NULL,
+	INGRESADOPOR varchar(10) NOT NULL,
+	FECHAINGRESO smalldatetime NOT NULL DEFAULT (getdate()),
+	MODIFICADOPOR varchar(10) NOT NULL,
+	FECHAMODIFICACION smalldatetime NOT NULL DEFAULT (getdate()),
+    CONSTRAINT FK_CODIGOLINEA FOREIGN KEY(CODIGOLINEA)
+    REFERENCES LISTAVALORES (CODIGO),
+    CONSTRAINT FK_CODIGOMARCA FOREIGN KEY(CODIGOMARCA)
+	REFERENCES LISTAVALORES (CODIGO)
+)
+
+GO
+CREATE TABLE MANTENIMIENTO(
+	CODIGOEQUIPO int NOT NULL PRIMARY KEY,
+	DOCUMENTO varchar(10) NOT NULL,
+	FECHA smalldatetime NOT NULL,
+	OBSERVACIONES varchar(255) NULL,
+	INGRESADOPOR varchar(10) NOT NULL,
+	FECHAINGRESO smalldatetime NOT NULL DEFAULT (getdate()),
+	MODIFICADOPOR varchar(10) NOT NULL,
+	FECHAMODIFICACION smalldatetime NOT NULL DEFAULT (getdate()),
+	CONSTRAINT FK_CODIGOEQUIPO FOREIGN KEY(CODIGOEQUIPO)
+	REFERENCES EQUIPOS (CODIGOEQUIPO),
+	CONSTRAINT FK_DOCUMENTO FOREIGN KEY(DOCUMENTO)
+	REFERENCES OPERARIOS (DOCUMENTO)
+)
+
+GO
+CREATE PROCEDURE 	spr_IUListaValores
+@p_CODIGO			INT,
+@p_NOMBRE 			varchar(50),
+@p_DESCRIPCION		varchar(255),
+@p_TIPO			    varchar(50),
+@p_USUARIOCONECTADO	NUMERIC(10,0),
+@p_RESULTADO        INT OUT
+
+AS
+  DECLARE @NombreNuevo  varchar(50)
+  DECLARE @NombreActual varchar(50)
+  SET @NombreNuevo = ''
+  SET @NombreActual = ''
+  SET @p_RESULTADO = 0
+
+  BEGIN TRY
+            SET @NombreNuevo = (SELECT NOMBRE FROM LISTAVALORES WHERE NOMBRE = @p_NOMBRE)           
+          
+        IF (@p_CODIGO = 0) 
+            IF (@NombreNuevo <> '') 
+                SET @p_RESULTADO = 1
+            ELSE  
+				   INSERT INTO LISTAVALORES(
+							   NOMBRE, 
+							   DESCRIPCION, 
+							   TIPO, 
+							   INGRESADOPOR, 
+							   MODIFICADOPOR)
+				   VALUES(
+							   @p_NOMBRE, 
+							   @p_DESCRIPCION, 
+							   @p_TIPO, 
+							   @p_USUARIOCONECTADO, 
+							   @p_USUARIOCONECTADO)
+        ELSE
+            SET @NombreActual = (SELECT NOMBRE FROM LISTAVALORES WHERE CODIGO = @p_CODIGO)
+            IF ((@NombreNuevo <> '') AND (@NombreActual <> @p_NOMBRE)) 
+			     SET @p_RESULTADO = 1
+            ELSE
+				 UPDATE LISTAVALORES SET             
+				 NOMBRE			   = @p_NOMBRE,  
+				 DESCRIPCION        = @p_DESCRIPCION, 
+				 MODIFICADOPOR      = @p_USUARIOCONECTADO,
+				 FECHAMODIFICACION  = GETDATE()
+				 WHERE CODIGO	   = @p_CODIGO             
+  END TRY
+  
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE spr_DRegistro		
+@p_TABLA		varchar(20),
+@p_CONDICION  	NUMERIC(10, 0),
+@p_RESULTADO    INT OUT 
+
+AS
+    DECLARE @DatoExiste varchar(50)
+    SET @DatoExiste = ''
+    SET @p_RESULTADO = 0
+    
+    
+BEGIN TRY
+      IF(@p_TABLA = 'OPERARIOS')
+         BEGIN
+			 SET @DatoExiste = (SELECT TOP 1 DOCUMENTO FROM MANTENIMIENTO WHERE DOCUMENTO = @p_CONDICION)
+			 IF (@DatoExiste <> '')
+				 BEGIN 
+					  SET @p_RESULTADO = 1
+				 END
+			 ELSE
+				 BEGIN
+					  DELETE FROM OPERARIOS WHERE DOCUMENTO = @p_CONDICION
+				 END
+         END
+      ELSE IF (@p_TABLA = 'EQUIPOS')  
+               BEGIN        
+                    SET @DatoExiste = (SELECT TOP 1 DOCUMENTO FROM MANTENIMIENTO WHERE CODIGOEQUIPO = @p_CONDICION)
+					IF (@DatoExiste <> '')
+					    BEGIN 
+							  SET @p_RESULTADO = 1
+					    END
+					 ELSE
+						 BEGIN
+							  DELETE FROM EQUIPOS WHERE CODIGOEQUIPO = @p_CONDICION
+                         END  
+               END
+      ELSE IF (@p_TABLA = 'LISTAVALORES')
+               
+               BEGIN                    
+                    SET @DatoExiste = (SELECT TOP 1 CODIGOLINEA FROM EQUIPOS WHERE CODIGOLINEA = @p_CONDICION)
+                    		IF (@DatoExiste <> '')
+					    BEGIN 
+							  SET @p_RESULTADO = 1
+					    END					
+                    ELSE
+						BEGIN 
+                              SET @DatoExiste = (SELECT TOP 1 CODIGOMARCA FROM EQUIPOS WHERE CODIGOMARCA = @p_CONDICION)
+					          IF (@DatoExiste <> '')
+				                   BEGIN 
+							            SET @p_RESULTADO = 1
+					               END
+                              ELSE
+                                  BEGIN
+							           DELETE FROM LISTAVALORES WHERE CODIGO = @p_CONDICION
+                                  END
+						END
+               END
+      ELSE IF (@p_TABLA = 'MANTENIMIENTO')
+               BEGIN  
+                    INSERT INTO RESPALDO SELECT * FROM MANTENIMIENTO WHERE CODIGOEQUIPO = @p_CONDICION
+                    DELETE FROM MANTENIMIENTO WHERE CODIGOEQUIPO = @p_CONDICION
+               END
+                    
+END TRY
+
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE spr_CCargarListado(		
+	@p_TABLA		varchar(20),    
+    @p_CONDICION	varchar(50))
+
+AS
+ BEGIN 
+      IF(@p_TABLA = 'OPERARIOS')
+         IF (@p_CONDICION <> '')
+             BEGIN         
+                   SELECT DOCUMENTO, (NOMBRES + ' ' + APELLIDOS) AS NOMBRE_COMPLETO, CORREO, FOTO  FROM OPERARIOS WHERE  DOCUMENTO = @p_CONDICION
+             END
+         ELSE 
+             BEGIN
+                               
+                   SELECT DOCUMENTO, (NOMBRES + ' ' + APELLIDOS) AS NOMBRE_COMPLETO, CORREO, FOTO FROM OPERARIOS
+             END         
+      ELSE IF (@p_TABLA = 'MARCAS') 
+               IF (@p_CONDICION <> '')   
+                   BEGIN  
+                          SELECT CODIGO, NOMBRE, DESCRIPCION, 'MARCAS' FROM LISTAVALORES WHERE DESCRIPCION IS NOT NULL AND TIPO = 'MARCAS'
+                          AND CODIGO = @p_CONDICION
+                          UNION ALL(SELECT CODIGO, NOMBRE, 'MARCAS','MARCAS' FROM LISTAVALORES WHERE DESCRIPCION IS NULL AND TIPO = 'MARCAS' AND CODIGO = @p_CONDICION)
+                   END
+               ELSE 
+                   BEGIN                      
+                          SELECT CODIGO, NOMBRE, DESCRIPCION, 'MARCAS' FROM LISTAVALORES WHERE DESCRIPCION IS NOT NULL AND TIPO = 'MARCAS'
+                          UNION ALL(SELECT CODIGO, NOMBRE, 'MARCAS','MARCAS' FROM LISTAVALORES WHERE DESCRIPCION IS NULL AND TIPO = 'MARCAS')           
+                   END    
+      ELSE IF (@p_TABLA = 'LINEAS')
+               
+               IF (@p_CONDICION <> '')   
+                   BEGIN   			                        
+                          SELECT CODIGO, NOMBRE, DESCRIPCION, 'LINEAS' FROM LISTAVALORES WHERE DESCRIPCION IS NOT NULL AND TIPO = 'LINEAS'
+                          AND CODIGO = @p_CONDICION
+                          UNION ALL(SELECT CODIGO, NOMBRE, 'LINEAS','LINEAS' FROM LISTAVALORES WHERE DESCRIPCION IS NULL AND TIPO = 'LINEAS' AND CODIGO = @p_CONDICION)
+                   END
+               ELSE 
+                   BEGIN   
+                          SELECT CODIGO, NOMBRE, DESCRIPCION, 'LINEAS' FROM LISTAVALORES WHERE DESCRIPCION IS NOT NULL AND TIPO = 'LINEAS'
+                          UNION ALL(SELECT CODIGO, NOMBRE, 'LINEAS', 'LINEAS' FROM LISTAVALORES WHERE DESCRIPCION IS NULL AND TIPO = 'LINEAS')
+                   END           
+      ELSE IF (@p_TABLA = 'EQUIPOS')
+              IF (@p_CONDICION <> '')   
+                   BEGIN                           
+				         SELECT CODIGOEQUIPO, 
+				  				NOMBREEQUIPO, 
+								SERIE, 
+								CASE
+									  WHEN LUBRICACION = 1 THEN 'SI'
+									  ELSE 'NO' 
+								END AS LUBRICACION		
+						 FROM EQUIPOS
+						WHERE (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO) AND CODIGOEQUIPO = @p_CONDICION))
+
+                   END
+               ELSE 
+                   BEGIN                                         
+				         SELECT CODIGOEQUIPO, 
+				  				NOMBREEQUIPO, 
+								SERIE, 
+								CASE
+									  WHEN LUBRICACION = 1 THEN 'SI'
+									  ELSE 'NO' 
+								END AS LUBRICACION		
+						 FROM EQUIPOS
+                        WHERE (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)))
+                   END                                    
+      ELSE IF (@p_TABLA = 'MANTENIMIENTO')
+               IF (@p_CONDICION <> '')   
+                   BEGIN
+                        SELECT M.CODIGOEQUIPO, E.SERIE, (M.DOCUMENTO+ ' ' +O.NOMBRES + ' ' + O.APELLIDOS) AS Operario, E.NOMBREEQUIPO
+						FROM MANTENIMIENTO M
+						INNER JOIN EQUIPOS E ON E.CODIGOEQUIPO = M.CODIGOEQUIPO
+						INNER JOIN OPERARIOS O ON O.DOCUMENTO = M.DOCUMENTO
+						WHERE M.CODIGOEQUIPO = @p_CONDICION
+                   END
+               ELSE 
+                   BEGIN   
+                          SELECT M.CODIGOEQUIPO, E.SERIE, (M.DOCUMENTO+ ' ' +O.NOMBRES + ' ' + O.APELLIDOS) AS Operario, E.NOMBREEQUIPO 
+						  FROM MANTENIMIENTO M
+						  INNER JOIN EQUIPOS E ON E.CODIGOEQUIPO = M.CODIGOEQUIPO
+						  INNER JOIN OPERARIOS O ON O.DOCUMENTO = M.DOCUMENTO
+                   END
+
+ 
+END
+
+GO
+CREATE PROCEDURE 	spr_IUEquipos
+@p_CODIGOEQUIPO		INT,
+@p_NOMBREEQUIPO		varchar(50),
+@p_CODIGOMARCA		INT,
+@p_SERIE		    varchar(50),
+@p_CODIGOLINEA		INT,
+@p_LUBRICACION	    BIT,
+@p_USUARIOCONECTADO	INT,
+@p_RESULTADO        INT OUT
+
+AS
+  DECLARE @SerieNueva  varchar(50)
+  DECLARE @SerieActual varchar(50)
+
+  SET @SerieNueva  = ''
+  SET @SerieActual = ''   
+  SET @p_RESULTADO = 0
+  
+  BEGIN TRY
+           SET @SerieNueva = (SELECT SERIE FROM EQUIPOS WHERE SERIE = @p_SERIE)           
+           IF (@p_CODIGOEQUIPO = 0) 
+               IF (@SerieNueva <> '')
+		           SET @p_RESULTADO = 1
+               ELSE
+           		   INSERT INTO EQUIPOS(
+										   NOMBREEQUIPO, 
+										   CODIGOMARCA,  
+										   SERIE, 
+										   CODIGOLINEA,  
+										   LUBRICACION, 
+										   INGRESADOPOR, 
+										   MODIFICADOPOR)
+							   VALUES(
+										   @p_NOMBREEQUIPO, 
+										   @p_CODIGOMARCA, 
+										   @p_SERIE, 
+										   @p_CODIGOLINEA, 
+										   @p_LUBRICACION, 
+										   @p_USUARIOCONECTADO, 
+										   @p_USUARIOCONECTADO)
+           ELSE
+            
+                 SET @SerieActual = (SELECT SERIE FROM EQUIPOS WHERE CODIGOEQUIPO = @p_CODIGOEQUIPO)
+                 IF ((@SerieNueva <>'') AND (@SerieActual <> @p_SERIE)) 
+			          SET @p_RESULTADO = 1	  
+	             ELSE		 		    
+				
+			         UPDATE EQUIPOS SET             
+					 NOMBREEQUIPO       = @p_NOMBREEQUIPO,  
+					 CODIGOMARCA        = @p_CODIGOMARCA, 
+					 SERIE              = @p_SERIE, 
+					 CODIGOLINEA        = @p_CODIGOLINEA, 
+					 LUBRICACION		= @p_LUBRICACION,
+					 MODIFICADOPOR      = @p_USUARIOCONECTADO,
+					 FECHAMODIFICACION  = GETDATE()
+		     		 WHERE CODIGOEQUIPO = @p_CODIGOEQUIPO      
+			      
+  END TRY
+
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE 	spr_IUMantenimiento
+@p_ACCION           varchar(1),  
+@p_CODIGOEQUIPO   	INT,
+@p_DOCUMENTO		NUMERIC(10,0),
+@p_FECHA			DATETIME,
+@p_OBSERVACIONES 	varchar(255),
+@p_USUARIOCONECTADO	NUMERIC(10,0),
+@p_RESULTADO          INT OUT
+
+AS
+  DECLARE @OperarioActual NUMERIC(10,0)
+  DECLARE @OperarioNuevo  NUMERIC(10,0)
+  DECLARE @FechaActual    varchar(10)
+  DECLARE @FechaNueva     varchar(10)
+  SET @OperarioActual = 0
+  SET @OperarioNuevo = 0
+  SET @FechaActual = ''
+  SET @FechaNueva = ''
+  set @p_RESULTADO = 0
+
+  BEGIN TRY
+        SELECT @OperarioNuevo = DOCUMENTO, @FechaNueva = FECHA FROM MANTENIMIENTO WHERE DOCUMENTO = @p_DOCUMENTO AND  convert(varchar(10), FECHA, 103) = convert(varchar(10), @p_FECHA, 103) 
+        IF (@p_ACCION = 'I') 
+            IF (@OperarioNuevo <> 0 AND @FechaNueva <> '')  
+		        set @p_RESULTADO = 1
+		     ELSE
+				   INSERT INTO MANTENIMIENTO(
+							   CODIGOEQUIPO, 
+							   DOCUMENTO, 
+							   FECHA, 
+							   OBSERVACIONES, 
+							   INGRESADOPOR, 
+							   MODIFICADOPOR)
+				   VALUES(
+							   @p_CODIGOEQUIPO, 
+							   @p_DOCUMENTO, 
+							   @p_FECHA,
+							   @p_OBSERVACIONES, 
+							   @p_USUARIOCONECTADO,
+							   @p_USUARIOCONECTADO)
+        ELSE     
+            IF (@OperarioNuevo <> 0) 
+               BEGIN   
+				   SELECT @OperarioActual = DOCUMENTO, @FechaActual = convert(varchar(10), FECHA, 103) FROM MANTENIMIENTO WHERE CODIGOEQUIPO = @p_CODIGOEQUIPO;
+				   IF (@OperarioActual <> @p_DOCUMENTO) 
+					  set @p_RESULTADO = 1
+				   ELSE IF ((@OperarioActual = @p_DOCUMENTO) AND (@FechaActual <> convert(varchar(10), @p_FECHA, 103))) 
+						   set @p_RESULTADO = 1	
+                   ELSE
+						BEGIN
+							UPDATE MANTENIMIENTO SET             
+							CODIGOEQUIPO	   = @p_CODIGOEQUIPO,  
+							DOCUMENTO          = @p_DOCUMENTO,
+							FECHA              = @p_FECHA,
+							OBSERVACIONES      = @p_OBSERVACIONES,
+							FECHAMODIFICACION  = GETDATE()
+							WHERE CODIGOEQUIPO = @p_CODIGOEQUIPO 
+						END
+ 
+               END		   
+            ELSE
+                BEGIN
+					UPDATE MANTENIMIENTO SET             
+					CODIGOEQUIPO	   = @p_CODIGOEQUIPO,  
+					DOCUMENTO          = @p_DOCUMENTO,
+					FECHA              = @p_FECHA,
+					OBSERVACIONES      = @p_OBSERVACIONES,
+					FECHAMODIFICACION  = GETDATE()
+					WHERE CODIGOEQUIPO = @p_CODIGOEQUIPO 
+                END
+                         
+  END TRY
+  
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE 	spr_IUOperarios
+@p_ACCION 			varchar(1),
+@p_DOCUMENTO		varchar(10),
+@p_NOMBRES			varchar(25),
+@p_APELLIDOS		varchar(25),
+@p_TELEFONO			NUMERIC(10, 0),
+@p_CORREO			varchar(50),
+@p_FOTO  			varchar(100),
+@p_USUARIOCONECTADO	varchar(10),
+@p_RESULTADO		INT OUT
+
+AS
+  DECLARE @Operario varchar(10)
+  SET @Operario = ''
+  SET @p_RESULTADO = 0
+
+  BEGIN TRY
+        IF (@p_ACCION = 'I') 
+            BEGIN
+                 SET @Operario = (SELECT DOCUMENTO FROM OPERARIOS WHERE DOCUMENTO = @p_DOCUMENTO)
+            
+				IF (@Operario <> '') 
+					SET @p_RESULTADO = 1
+				ELSE
+        			   INSERT INTO OPERARIOS(
+								   DOCUMENTO, 
+								   NOMBRES, 
+								   APELLIDOS, 
+								   TELEFONO, 
+								   CORREO, 
+								   CLAVE,
+								   FOTO, 
+								   INGRESADOPOR, 
+								   MODIFICADOPOR)
+					   VALUES(
+								   @p_DOCUMENTO, 
+								   @p_NOMBRES, 
+								   @p_APELLIDOS, 
+								   @p_TELEFONO, 
+								   @p_CORREO, 
+								   ENCRYPTBYPASSPHRASE('$$PEPE$$', @p_DOCUMENTO),
+								   @p_FOTO, 
+								   @p_USUARIOCONECTADO,
+								   @p_USUARIOCONECTADO)
+				END
+        ELSE
+            UPDATE OPERARIOS SET             
+            NOMBRES            = @p_NOMBRES,  
+            APELLIDOS          = @p_APELLIDOS, 
+            TELEFONO           = @p_TELEFONO, 
+            CORREO             = @p_CORREO,
+            FOTO		       = @p_FOTO,
+            MODIFICADOPOR      = @p_USUARIOCONECTADO,
+            FECHAMODIFICACION  = GETDATE()
+            WHERE DOCUMENTO    = @p_DOCUMENTO             
+  END TRY
+  
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE 	spr_UCambioClave
+@p_DOCUMENTO		VARCHAR(10),
+@p_CLAVE_ANTERIOR	varchar(20),
+@p_CLAVE_NUEVA	    varchar(20),
+@p_RESULTADO        INT OUT  
+
+AS
+  DECLARE @v_DatoExiste VARCHAR(300);
+
+  SELECT @v_DatoExiste = CONVERT(VARCHAR(300), DECRYPTBYPASSPHRASE('$$PEPE$$', CLAVE)) FROM OPERARIOS WHERE DOCUMENTO = @p_DOCUMENTO
+  SET @p_RESULTADO = 0
+  
+  BEGIN TRY
+            IF (@v_DatoExiste <> @p_CLAVE_ANTERIOR)
+                SET @p_RESULTADO = 1
+            ELSE
+                BEGIN
+						UPDATE OPERARIOS SET             
+						CLAVE				= ENCRYPTBYPASSPHRASE('$$PEPE$$', @p_CLAVE_NUEVA),
+						MODIFICADOPOR		= @p_DOCUMENTO,
+						FECHAMODIFICACION	= GETDATE()
+						WHERE DOCUMENTO		= @p_DOCUMENTO  
+                END  
+  END TRY
+
+BEGIN CATCH   
+      SET @P_RESULTADO = ERROR_NUMBER()
+      RETURN @P_RESULTADO
+END CATCH
+
+GO
+CREATE PROCEDURE spr_CValidarExistenciaDatos
+(
+  @p_TABLA        varchar(20),
+  @p_RESULTADO    INT OUT
+)
+
+AS
+
+BEGIN
+      SET @p_RESULTADO = -1
+	  IF (@p_TABLA = 'OPERARIOS')
+          SELECT @p_RESULTADO = COUNT(*) FROM OPERARIOS 
+      ELSE IF (@p_TABLA = 'EQUIPOS')  
+               SELECT @p_RESULTADO = COUNT(*) FROM EQUIPOS
+               WHERE NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))
+      ELSE IF (@p_TABLA = 'CPROGRAMAREQUIPOS')                     
+	 		  BEGIN
+				   SELECT @p_RESULTADO = COUNT(*) FROM CPROGRAMAREQUIPOS 
+              	   IF (@p_RESULTADO = 0)
+				 	   SET @p_RESULTADO = -1    
+				   ELSE
+                       BEGIN
+   		  				    SELECT @p_RESULTADO = COUNT(*) FROM OPERARIOS
+						    IF (@p_RESULTADO = 0)
+					 		    SET @p_RESULTADO = -2  
+                       END
+              END       
+     ELSE IF (@p_TABLA = 'CPROGRAMACION')         
+	 	      SELECT @p_RESULTADO = COUNT(*) FROM CPROGRAMACION     
+     ELSE IF (@p_TABLA = 'RESPALDO')        
+	 	      SELECT @p_RESULTADO = COUNT(*) FROM RESPALDO 
+     ELSE IF (@p_TABLA = 'CMARCAS')        
+              BEGIN
+	 			  SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'MARCAS' 
+				  IF (@p_RESULTADO = 0)
+					  SET @p_RESULTADO = -1
+				  ELSE
+                      BEGIN  
+       					   SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'LINEAS' 
+						   IF (@p_RESULTADO = 0)
+						 	   SET @p_RESULTADO = -2
+                      END    
+              END           
+     ELSE IF (@p_TABLA = 'MARCAS')    
+              SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'MARCAS'    
+     ELSE IF (@p_TABLA = 'LINEAS')        
+              SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'LINEAS' 
+END
+
+GO
+CREATE PROCEDURE spr_CCargarCombosListas(		
+	@p_TABLA			varchar(30))
+
+AS
+BEGIN 
+      IF(@p_TABLA = 'OPERARIOS')
+         SELECT DOCUMENTO, (NOMBRES + ' ' + APELLIDOS) AS NOMBRECOMPLETO FROM OPERARIOS
+      ELSE IF (@p_TABLA = 'EQUIPOS')       
+               SELECT CODIGOEQUIPO, NOMBREEQUIPO FROM EQUIPOS
+               WHERE NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))
+
+      ELSE IF (@p_TABLA = 'CLINEAS')
+               SELECT CODIGO,NOMBRE FROM CLINEAS
+      ELSE IF (@p_TABLA = 'CMARCAS')
+               SELECT CODIGO, NOMBRE FROM CMARCAS 
+      ELSE IF (@p_TABLA = 'CPROGRAMACION')
+               SELECT * FROM CPROGRAMACION     		   
+      ELSE IF (@p_TABLA = 'CPROGRAMAREQUIPOS')
+               SELECT * FROM CPROGRAMAREQUIPOS
+      ELSE IF (@p_TABLA = 'CONTROLEQUIPOS')
+               SELECT  CODIGO, NOMBRE, TIPO
+			   FROM LISTAVALORES
+			   UNION ALL(
+			   SELECT CODIGOEQUIPO, NOMBREEQUIPO, 'EQUIPOS' FROM EQUIPOS
+			   WHERE NOT EXISTS
+			          		   (SELECT CODIGOEQUIPO
+							    FROM   MANTENIMIENTO
+							    WHERE  (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)))
+			   ORDER BY TIPO
+      ELSE IF (@p_TABLA = 'CONTROLPROGRAMACION')        
+               SELECT CODIGOEQUIPO, (NOMBREEQUIPO+ ' '+ SERIE) AS EQUIPO, 'EQUIPOS' AS TIPO FROM CPROGRAMACION
+     		   UNION ALL(
+			   SELECT DOCUMENTO, (NOMBRES + ' ' + APELLIDOS) AS NOMBRECOMPLETO, 'OPERARIOS' FROM OPERARIOS)
+			   ORDER BY TIPO
+      ELSE IF (@p_TABLA = 'CONTROLPROGRAMAREQUIPOS')        
+               SELECT CODIGOEQUIPO, (NOMBREEQUIPO+ ' '+ SERIE) AS EQUIPO, 'EQUIPOS' AS TIPO FROM CPROGRAMAREQUIPOS
+     		   UNION ALL(
+			   SELECT DOCUMENTO, (NOMBRES + ' ' + APELLIDOS) AS NOMBRECOMPLETO, 'OPERARIOS' FROM OPERARIOS)
+			   ORDER BY TIPO
+END
+
+GO
+CREATE PROCEDURE spr_CBuscarRegistro(		
+	@p_TABLA		varchar(20),
+    @p_DATOBUSCAR	varchar(50),    
+    @p_CONDICION	varchar(50))
+
+AS
+
+ BEGIN 
+      IF(@p_TABLA = 'OPERARIOS')
+         IF (@p_CONDICION <> '')
+             BEGIN
+                   SELECT DOCUMENTO, NOMBRES, APELLIDOS, PERFIL FROM OPERARIOS WHERE DOCUMENTO = @p_DATOBUSCAR AND CONVERT(VARCHAR(300), DECRYPTBYPASSPHRASE('$$PEPE$$', CLAVE)) = @p_CONDICION
+             END
+         ELSE 
+             BEGIN
+                   SELECT DOCUMENTO, NOMBRES, APELLIDOS, TELEFONO, CORREO, FOTO FROM OPERARIOS WHERE DOCUMENTO = @p_DATOBUSCAR
+             END         
+      ELSE IF (@p_TABLA = 'EQUIPOS')   
+               SELECT * FROM EQUIPOS WHERE CODIGOEQUIPO = @p_DATOBUSCAR                
+      ELSE IF (@p_TABLA = 'LISTAVALORES')
+               SELECT * FROM LISTAVALORES WHERE CODIGO = @p_DATOBUSCAR                 
+     ELSE IF (@p_TABLA = 'MANTENIMIENTO')
+              SELECT * FROM MANTENIMIENTO WHERE CODIGOEQUIPO = @p_DATOBUSCAR                              
+      ELSE IF (@p_TABLA = 'CProgramarEquipos')
+               SELECT * FROM  CProgramarEquipos
+      ELSE IF (@p_TABLA = 'CProgramacion')
+               SELECT * FROM  CProgramacion
+      ELSE IF (@p_TABLA = 'CLineas')
+               SELECT * FROM  CLineas
+      ELSE IF (@p_TABLA = 'CMarcas')
+               SELECT * FROM  CMarcas
+ 
+END
+
+GO
+CREATE VIEW CLineas
+AS
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='LINEAS'
+
+GO
+CREATE VIEW CLubricacion
+AS
+SELECT EQUIPOS.CODIGOEQUIPO, EQUIPOS.NOMBREEQUIPO, EQUIPOS.SERIE
+FROM EQUIPOS
+WHERE LUBRICACION=1
+
+GO
+CREATE VIEW CMarcas
+AS
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='MARCAS'
+
+GO
+CREATE VIEW CProgramacion
+AS
+SELECT E.CODIGOEQUIPO, E.NOMBREEQUIPO, E.SERIE
+FROM MANTENIMIENTO AS M, EQUIPOS AS E
+WHERE M.CODIGOEQUIPO=E.CODIGOEQUIPO
+
+GO
+CREATE VIEW CProgramarEquipos
+AS
+SELECT     CODIGOEQUIPO, NOMBREEQUIPO, SERIE
+FROM       EQUIPOS
+WHERE     (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM          MANTENIMIENTO
+                            WHERE      (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))) AND (LUBRICACION = 1)
+
+GO
+
+INSERT INTO OPERARIOS(DOCUMENTO, NOMBRES, APELLIDOS, TELEFONO, CORREO, CLAVE, PERFIL, INGRESADOPOR, MODIFICADOPOR) 
+VALUES ('123456', 'Admin', 'Admin', '1234567', 'correo@yahoo.com', ENCRYPTBYPASSPHRASE('$$PEPE$$', 'laclave'), 1, '123456', '123456')
+
+INSERT INTO LISTAVALORES(NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES('SIEMENS','MARCAS','PROVEEDOR SIEMENS','123456','123456')
+INSERT INTO LISTAVALORES(NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES('RICOH','MARCAS','PROVEEDOR RICOH','123456','123456')
+INSERT INTO LISTAVALORES(NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES('ACABADOS','LINEAS','PLANTA DE ACABADOS','123456','123456')
+INSERT INTO LISTAVALORES(NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES('ENSAMBLE','LINEAS','PLANTA DE ENSAMBLE','123456','123456')
+
+INSERT INTO EQUIPOS (NOMBREEQUIPO,CODIGOMARCA,SERIE,CODIGOLINEA,LUBRICACION,INGRESADOPOR,MODIFICADOPOR) VALUES ('EQUIPO DESPALETIZADOR',1,'EDPA2045',3,1,'123456','123456')
+INSERT INTO EQUIPOS (NOMBREEQUIPO,CODIGOMARCA,SERIE,CODIGOLINEA,LUBRICACION,INGRESADOPOR,MODIFICADOPOR) VALUES ('EQUIPO DESPRESURIZADOR',2,'EDPU2087',4,1,'123456','123456')

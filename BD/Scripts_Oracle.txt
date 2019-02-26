@@ -1,0 +1,954 @@
+-- =========================================================================================
+-- ======= Debes crear un User y otorgar permisos ======= 
+-- CREATE SCHEMA controlmantenimientodb AUTHORIZATION TuPassword;
+-- CREATE USER Nombre_Usuario IDENTIFIED BY TuPassword;
+-- GRANT CONNECT TO Nombre_Usuario;
+-- GRANT CONNECT, RESOURCE, DBA TO Nombre_Usuario;
+-- GRANT CREATE SESSION GRANT ANY PRIVILEGE TO Nombre_Usuario;
+-- GRANT UNLIMITED TABLESPACE TO Nombre_Usuario;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON schema.controlmantenimientodb TO Nombre_Usuario;
+-- =========================================================================================
+
+CREATE TABLE OPERARIOS ( 
+  DOCUMENTO          VARCHAR2 (10)  NOT NULL, 
+  NOMBRES            VARCHAR2 (25)  NOT NULL, 
+  APELLIDOS          VARCHAR2 (25)  NOT NULL, 
+  TELEFONO           VARCHAR2 (10)  NOT NULL, 
+  CORREO             VARCHAR2 (50), 
+  CLAVE              VARCHAR2 (20)  NOT NULL, 
+  PERFIL             NUMBER (1)    DEFAULT 3 NOT NULL, 
+  FOTO               VARCHAR2 (50), 
+  INGRESADOPOR       NUMBER (10)   NOT NULL, 
+  MODIFICADOPOR      NUMBER (10)   NOT NULL, 
+  FECHAINGRESO       DATE          DEFAULT SYSDATE NOT NULL, 
+  FECHAMODIFICACION  DATE          DEFAULT SYSDATE NOT NULL ) ; 
+
+
+ALTER TABLE OPERARIOS
+ ADD  PRIMARY KEY (DOCUMENTO) 
+; 
+
+
+CREATE TABLE EQUIPOS ( 
+  CODIGOEQUIPO       NUMBER (4)    NOT NULL, 
+  NOMBREEQUIPO       VARCHAR2 (50)  NOT NULL, 
+  CODIGOMARCA        NUMBER (4)    NOT NULL, 
+  SERIE              VARCHAR2 (20)  NOT NULL, 
+  CODIGOLINEA        NUMBER (4)    NOT NULL, 
+  LUBRICACION        NUMBER (1), 
+  INGRESADOPOR       NUMBER (10)   NOT NULL, 
+  MODIFICADOPOR      NUMBER (10)   NOT NULL, 
+  FECHAINGRESO       DATE          DEFAULT SYSDATE NOT NULL, 
+  FECHAMODIFICACION  DATE          DEFAULT SYSDATE NOT NULL, 
+  UNIQUE (SERIE) ) ; 
+
+
+ALTER TABLE EQUIPOS
+ ADD  PRIMARY KEY (CODIGOEQUIPO) 
+; 
+
+CREATE TABLE LISTAVALORES ( 
+  CODIGO             NUMBER (4)    NOT NULL, 
+  NOMBRE             VARCHAR2 (50)  NOT NULL, 
+  DESCRIPCION        VARCHAR2 (255), 
+  TIPO               VARCHAR2 (50)  NOT NULL, 
+  INGRESADOPOR       NUMBER (10)   NOT NULL, 
+  MODIFICADOPOR      NUMBER (10)   NOT NULL, 
+  FECHAINGRESO       DATE          DEFAULT SYSDATE NOT NULL, 
+  FECHAMODIFICACION  DATE          DEFAULT SYSDATE NOT NULL, 
+  UNIQUE (NOMBRE) ) ; 
+
+
+ALTER TABLE LISTAVALORES
+ ADD  PRIMARY KEY (CODIGO) 
+; 
+
+CREATE TABLE RESPALDO ( 
+  CODIGOEQUIPO       NUMBER (4)    NOT NULL, 
+  DOCUMENTO          VARCHAR2 (10)  NOT NULL, 
+  FECHA              DATE          NOT NULL, 
+  DESCRIPCION        VARCHAR2 (255), 
+  INGRESADOPOR       NUMBER (10)   NOT NULL, 
+  MODIFICADOPOR      NUMBER (10)   NOT NULL, 
+  FECHAINGRESO       DATE          NOT NULL, 
+  FECHAMODIFICACION  DATE          NOT NULL ) ; 
+
+
+CREATE TABLE MANTENIMIENTO ( 
+  CODIGOEQUIPO       NUMBER (4)    NOT NULL, 
+  DOCUMENTO          VARCHAR2 (10)  NOT NULL, 
+  FECHA              DATE          NOT NULL, 
+  OBSERVACIONES      VARCHAR2 (255), 
+  INGRESADOPOR       NUMBER (10)   NOT NULL, 
+  MODIFICADOPOR      NUMBER (10)   NOT NULL, 
+  FECHAINGRESO       DATE          DEFAULT SYSDATE NOT NULL, 
+  FECHAMODIFICACION  DATE          DEFAULT SYSDATE NOT NULL ) ; 
+
+
+ALTER TABLE MANTENIMIENTO
+ ADD  PRIMARY KEY (CODIGOEQUIPO) 
+; 
+
+CREATE UNIQUE INDEX CONTROLMANTENIMIENTODB.MANTENIMIENTO_R01 ON 
+  "CONTROLMANTENIMIENTODB".MANTENIMIENTO(FECHA, DOCUMENTO) 
+; 
+
+
+ALTER TABLE CONTROLMANTENIMIENTODB.MANTENIMIENTO ADD  CONSTRAINT FK_CODIGOEQUIPO
+ FOREIGN KEY (CODIGOEQUIPO) 
+  REFERENCES CONTROLMANTENIMIENTODB.EQUIPOS (CODIGOEQUIPO) ;
+
+ALTER TABLE CONTROLMANTENIMIENTODB.MANTENIMIENTO ADD  CONSTRAINT FK_DOCUMENTO
+ FOREIGN KEY (DOCUMENTO) 
+  REFERENCES CONTROLMANTENIMIENTODB.OPERARIOS (DOCUMENTO) ;
+
+
+CREATE OR REPLACE VIEW CLUBRICACION ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT EQUIPOS.CODIGOEQUIPO, EQUIPOS.NOMBREEQUIPO, EQUIPOS.SERIE
+FROM EQUIPOS
+WHERE LUBRICACION=1;
+
+
+CREATE OR REPLACE VIEW CPROGRAMAREQUIPOS ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT     CODIGOEQUIPO, NOMBREEQUIPO, SERIE
+FROM       EQUIPOS
+WHERE     (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM          MANTENIMIENTO
+                            WHERE      (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))) AND (LUBRICACION = 1);
+
+
+CREATE OR REPLACE VIEW CMARCAS ( CODIGO, 
+NOMBRE ) AS 
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='MARCAS' ORDER BY CODIGO;
+
+
+CREATE OR REPLACE VIEW CLINEAS ( CODIGO, 
+NOMBRE ) AS 
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='LINEAS'
+ORDER BY CODIGO;
+
+
+CREATE OR REPLACE VIEW CPROGRAMACION ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT E.CODIGOEQUIPO, E.NOMBREEQUIPO, E.SERIE
+FROM MANTENIMIENTO M, EQUIPOS  E
+WHERE M.CODIGOEQUIPO=E.CODIGOEQUIPO; 
+
+CREATE OR REPLACE VIEW CLUBRICACION ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT EQUIPOS.CODIGOEQUIPO, EQUIPOS.NOMBREEQUIPO, EQUIPOS.SERIE
+FROM EQUIPOS
+WHERE LUBRICACION=1;
+
+
+CREATE OR REPLACE VIEW CPROGRAMAREQUIPOS ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT     CODIGOEQUIPO, NOMBREEQUIPO, SERIE
+FROM       EQUIPOS
+WHERE     (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM          MANTENIMIENTO
+                            WHERE      (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))) AND (LUBRICACION = 1);
+
+
+CREATE OR REPLACE VIEW CMARCAS ( CODIGO, 
+NOMBRE ) AS 
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='MARCAS' ORDER BY CODIGO;
+
+
+CREATE OR REPLACE VIEW CLINEAS ( CODIGO, 
+NOMBRE ) AS 
+SELECT CODIGO, NOMBRE
+FROM LISTAVALORES
+WHERE TIPO='LINEAS'
+ORDER BY CODIGO;
+
+
+CREATE OR REPLACE VIEW CPROGRAMACION ( CODIGOEQUIPO, 
+NOMBREEQUIPO, SERIE ) AS 
+SELECT E.CODIGOEQUIPO, E.NOMBREEQUIPO, E.SERIE
+FROM MANTENIMIENTO M, EQUIPOS  E
+WHERE M.CODIGOEQUIPO=E.CODIGOEQUIPO; 
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_CBUSCARREGISTRO;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_CBuscarRegistro
+(
+  p_TABLA       IN  VARCHAR2,
+  p_DATOBUSCAR  IN  VARCHAR2, 
+  p_CONDICION   IN  VARCHAR2,
+  Out_Data      OUT SYS_REFCURSOR
+)
+
+IS    
+
+BEGIN
+      IF(p_TABLA = 'OPERARIOS') THEN
+         IF (p_CONDICION IS NOT NULL) THEN
+             OPEN Out_Data for
+             SELECT DOCUMENTO, NOMBRES, APELLIDOS, PERFIL FROM OPERARIOS WHERE DOCUMENTO =  p_DATOBUSCAR AND CLAVE = p_CONDICION;
+         ELSE
+             OPEN Out_Data for
+             SELECT DOCUMENTO, NOMBRES, APELLIDOS, TELEFONO, CORREO, FOTO FROM OPERARIOS WHERE DOCUMENTO = p_DATOBUSCAR;
+         END IF;        
+              
+      ELSIF (p_TABLA = 'EQUIPOS') THEN
+             OPEN Out_Data for
+             SELECT * FROM EQUIPOS WHERE CODIGOEQUIPO =  p_DATOBUSCAR;                                        
+      ELSIF (p_TABLA = 'LISTAVALORES') THEN
+                 OPEN Out_Data for
+                 SELECT * FROM LISTAVALORES WHERE CODIGO =  p_DATOBUSCAR;                        
+      ELSIF (p_TABLA = 'MANTENIMIENTO') THEN
+             OPEN Out_Data for
+             SELECT * FROM MANTENIMIENTO WHERE CODIGOEQUIPO =  p_DATOBUSCAR;
+      ELSIF (p_TABLA = 'CPROGRAMAREQUIPOS') THEN
+             OPEN Out_Data for
+             SELECT * FROM  CPROGRAMAREQUIPOS;
+      ELSIF (p_TABLA = 'CPROGRAMACION') THEN
+             OPEN Out_Data for
+             SELECT * FROM  CPROGRAMACION;      
+      ELSIF (p_TABLA = 'CLINEAS') THEN
+             OPEN Out_Data for 
+             SELECT * FROM  CLINEAS;
+      ELSIF (p_TABLA = 'CMARCAS') THEN
+             OPEN Out_Data for
+             SELECT * FROM  CMARCAS;          
+      END IF;   
+      
+END spr_CBuscarRegistro;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_CCARGARCOMBOSLISTAS;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_CCargarCombosListas
+(
+  p_TABLA      IN  VARCHAR2,
+  Out_Data     OUT SYS_REFCURSOR
+)
+
+AS    
+BEGIN
+      IF(p_TABLA = 'OPERARIOS') THEN
+         OPEN Out_Data for
+         SELECT DOCUMENTO, (NOMBRES ||' '|| APELLIDOS) AS NOMBRECOMPLETO FROM OPERARIOS;
+      ELSIF (p_TABLA = 'EQUIPOS') THEN
+             OPEN Out_Data for
+             SELECT CODIGOEQUIPO, NOMBREEQUIPO FROM EQUIPOS
+              WHERE  (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)));
+
+      ELSIF (p_TABLA = 'CLINEAS') THEN
+             OPEN Out_Data for
+             SELECT CODIGO, NOMBRE FROM CLINEAS;    
+      ELSIF (p_TABLA = 'CMARCAS') THEN
+             OPEN Out_Data for
+             SELECT CODIGO, NOMBRE FROM CMARCAS;
+      ELSIF (p_TABLA = 'CPROGRAMACION') THEN
+             OPEN Out_Data for
+             SELECT CODIGOEQUIPO, (NOMBREEQUIPO ||' '|| SERIE) AS EQUIPO FROM CPROGRAMACION;
+      ELSIF (p_TABLA = 'CPROGRAMAREQUIPOS') THEN
+             OPEN Out_Data for
+             SELECT CODIGOEQUIPO, (NOMBREEQUIPO ||' '|| SERIE) AS EQUIPO FROM CPROGRAMAREQUIPOS;
+      ELSIF (p_TABLA = 'CONTROLPROGRAMACION') THEN       
+             OPEN Out_Data for    
+             SELECT TO_CHAR(CODIGOEQUIPO), (NOMBREEQUIPO ||' '|| SERIE) AS EQUIPO, 'EQUIPOS' AS TIPO FROM CPROGRAMACION
+              UNION ALL(
+             SELECT DOCUMENTO, (NOMBRES ||' '|| APELLIDOS) AS NOMBRECOMPLETO, 'OPERARIOS' FROM OPERARIOS)
+             ORDER BY TIPO;
+      ELSIF (p_TABLA = 'CONTROLPROGRAMAREQUIPOS') THEN
+             OPEN Out_Data for        
+             SELECT TO_CHAR(CODIGOEQUIPO), (NOMBREEQUIPO ||' '|| SERIE) AS EQUIPO, 'EQUIPOS' AS TIPO FROM CPROGRAMAREQUIPOS
+              UNION ALL(
+             SELECT DOCUMENTO, (NOMBRES ||' '|| APELLIDOS) AS NOMBRECOMPLETO, 'OPERARIOS' FROM OPERARIOS)
+             ORDER BY TIPO;
+       ELSIF (p_TABLA = 'CONTROLEQUIPOS') THEN
+               OPEN Out_Data for        
+               SELECT  CODIGO, NOMBRE, TIPO
+               FROM LISTAVALORES
+               UNION ALL(
+               SELECT CODIGOEQUIPO, NOMBREEQUIPO, 'EQUIPOS' FROM EQUIPOS
+               WHERE NOT EXISTS
+                                 (SELECT CODIGOEQUIPO
+                                FROM   MANTENIMIENTO
+                                WHERE  (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)))
+               ORDER BY TIPO;             
+      END IF;
+     
+END spr_CCargarCombosListas;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_CCARGARLISTADO;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_CCargarListado
+(
+  p_TABLA       IN  VARCHAR2, 
+  p_CONDICION   IN  VARCHAR2,
+  Out_Data      OUT SYS_REFCURSOR
+)
+
+IS    
+
+BEGIN
+      IF(p_TABLA = 'OPERARIOS') THEN
+         IF (p_CONDICION IS NOT NULL) THEN
+             OPEN Out_Data for
+             SELECT DOCUMENTO, (NOMBRES ||' '|| APELLIDOS) AS NOMBRE_COMPLETO, CORREO, FOTO FROM OPERARIOS WHERE  DOCUMENTO = p_CONDICION;
+         ELSE
+             OPEN Out_Data for
+             SELECT DOCUMENTO, (NOMBRES ||' '|| APELLIDOS) AS NOMBRE_COMPLETO, CORREO, FOTO FROM OPERARIOS;
+         END IF;  
+	  ELSIF (p_TABLA = 'MARCAS') THEN
+              IF (p_CONDICION IS NOT NULL) THEN	       
+                  OPEN Out_Data for
+				  SELECT CODIGO, NOMBRE, DESCRIPCION, ' ' FROM LISTAVALORES WHERE TIPO ='MARCAS' AND CODIGO = p_CONDICION;
+			  ELSE
+                  OPEN Out_Data for
+                  SELECT CODIGO, NOMBRE, DESCRIPCION, ' ' FROM LISTAVALORES WHERE TIPO ='MARCAS';
+              END IF;	  
+	  ELSIF (p_TABLA = 'LINEAS') THEN
+              IF (p_CONDICION IS NOT NULL) THEN	       
+                  OPEN Out_Data for
+				  SELECT CODIGO, NOMBRE, DESCRIPCION, ' ' FROM LISTAVALORES WHERE TIPO ='LINEAS' AND CODIGO = p_CONDICION;
+			  ELSE
+                  OPEN Out_Data for
+                  SELECT CODIGO, NOMBRE, DESCRIPCION, ' ' FROM LISTAVALORES WHERE TIPO ='LINEAS';
+              END IF;
+	  ELSIF (p_TABLA = 'EQUIPOS') THEN
+              IF (p_CONDICION IS NOT NULL) THEN	       
+                  OPEN Out_Data for
+				  SELECT CODIGOEQUIPO, 
+				  		 NOMBREEQUIPO, 
+						 SERIE, 
+						 CASE
+                              WHEN LUBRICACION = 1 THEN 'SI'
+                              ELSE 'NO' 
+                         END AS LUBRICACION		
+				  FROM EQUIPOS
+                  WHERE  (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)) AND CODIGOEQUIPO = p_CONDICION);				
+			  ELSE
+                  OPEN Out_Data for
+                   SELECT CODIGOEQUIPO, 
+				  		 NOMBREEQUIPO, 
+						 SERIE, 
+						 CASE
+                              WHEN LUBRICACION = 1 THEN 'SI'
+                              ELSE 'NO' 
+                         END AS LUBRICACION		
+				  FROM EQUIPOS
+                  WHERE  (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)));							
+              END IF;	
+	  ELSIF (p_TABLA = 'MANTENIMIENTO') THEN
+              IF (p_CONDICION IS NOT NULL) THEN	       
+                  OPEN Out_Data for
+				  SELECT M.CODIGOEQUIPO, E.SERIE, (M.DOCUMENTO  ||' - '||  O.NOMBRES  ||' - '||  O.APELLIDOS) AS NOMBRE_COMPLETO, E.NOMBREEQUIPO 
+				  FROM MANTENIMIENTO M
+				  INNER JOIN EQUIPOS E ON E.CODIGOEQUIPO = M.CODIGOEQUIPO
+				  INNER JOIN OPERARIOS O ON O.DOCUMENTO = M.DOCUMENTO
+			      WHERE M.CODIGOEQUIPO = p_CONDICION;
+			  ELSE
+                  OPEN Out_Data for
+                  SELECT M.CODIGOEQUIPO, E.SERIE, (M.DOCUMENTO  ||' - '||  O.NOMBRES  ||' - '||  O.APELLIDOS) AS NOMBRE_COMPLETO, E.NOMBREEQUIPO 
+				  FROM MANTENIMIENTO M
+				  INNER JOIN EQUIPOS E ON E.CODIGOEQUIPO = M.CODIGOEQUIPO
+				  INNER JOIN OPERARIOS O ON O.DOCUMENTO = M.DOCUMENTO;
+              END IF;	
+      END IF;
+END spr_CCargarListado;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_CVALIDAREXISTENCIADATOS;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_CValidarExistenciaDatos
+(
+  p_TABLA    IN  VARCHAR2,
+  p_RESULTADO   OUT NUMERIC 
+)
+
+IS
+
+BEGIN
+     p_RESULTADO:= 0;
+     
+     IF (p_TABLA = 'OPERARIOS') THEN
+          SELECT COUNT(*) INTO p_RESULTADO FROM OPERARIOS;
+     ELSIF (p_TABLA = 'EQUIPOS') THEN     
+            SELECT COUNT(*) INTO p_RESULTADO FROM EQUIPOS
+              WHERE  (NOT EXISTS
+                          (SELECT     CODIGOEQUIPO
+                            FROM       MANTENIMIENTO
+                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)));
+     ELSIF (p_TABLA = 'CLINEAS') THEN
+            SELECT COUNT(*) INTO p_RESULTADO FROM CLINEAS;            
+     ELSIF (p_TABLA = 'CMARCAS') THEN
+	        BEGIN
+	             SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'MARCAS';
+				 IF (p_RESULTADO = 0)  THEN
+				     p_RESULTADO := -1;
+				 ELSE
+				     SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'LINEAS';
+					 IF (p_RESULTADO = 0)  THEN
+				         p_RESULTADO := -2;
+				     END IF;
+				END IF;	
+		    END;		
+     ELSIF (p_TABLA = 'CPROGRAMACION')  THEN
+            SELECT COUNT(*) INTO p_RESULTADO FROM CPROGRAMACION;
+     ELSIF (p_TABLA = 'CPROGRAMAREQUIPOS') THEN
+            BEGIN
+				 SELECT COUNT(*) INTO p_RESULTADO FROM CPROGRAMAREQUIPOS;
+				 IF (p_RESULTADO = 0)  THEN
+				     p_RESULTADO := -1;
+				 ELSE
+					 SELECT COUNT(*) INTO p_RESULTADO FROM OPERARIOS;
+					 IF (p_RESULTADO = 0)  THEN
+				         p_RESULTADO := -2;
+				     END IF;
+				 END IF;
+		    END;		
+     ELSIF (p_TABLA = 'RESPALDO') THEN
+            SELECT COUNT(*) INTO p_RESULTADO FROM RESPALDO;
+     ELSIF (p_TABLA = 'LINEAS') THEN
+              SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'LINEAS';				        
+     ELSIF (p_TABLA = 'MARCAS') THEN
+              SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'MARCAS';					
+     END IF;            
+END spr_CValidarExistenciaDatos;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_DREGISTRO;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_DRegistro
+(
+  p_TABLA      IN  VARCHAR2,
+  p_CONDICION  IN  VARCHAR2,
+  p_RESULTADO  OUT NUMERIC 
+
+)
+
+IS
+
+v_DatoExiste varchar2(50):= null;
+
+
+CURSOR Cur_Mantenimiento1 IS
+SELECT DOCUMENTO
+FROM   MANTENIMIENTO
+WHERE  DOCUMENTO  = p_CONDICION AND ROWNUM =1;
+
+CURSOR Cur_Mantenimiento2 IS
+SELECT DOCUMENTO
+FROM   MANTENIMIENTO
+WHERE  CODIGOEQUIPO  = p_CONDICION;
+
+CURSOR Cur_Equipos1 IS
+SELECT CODIGOLINEA
+FROM   EQUIPOS
+WHERE  CODIGOLINEA  = p_CONDICION AND ROWNUM =1;
+
+CURSOR Cur_Equipos2 IS
+SELECT CODIGOMARCA
+FROM   EQUIPOS
+WHERE  CODIGOMARCA  = p_CONDICION AND ROWNUM =1;
+
+BEGIN
+      p_RESULTADO := 0;
+
+      IF(p_TABLA = 'OPERARIOS') THEN
+	     OPEN Cur_Mantenimiento1;
+		 FETCH Cur_Mantenimiento1 INTO v_DatoExiste;
+		 CLOSE Cur_Mantenimiento1;
+		 IF (v_DatoExiste IS NOT NULL) THEN
+             p_RESULTADO := 1;
+		 ELSE
+		     DELETE FROM OPERARIOS WHERE DOCUMENTO = p_CONDICION;
+	    END IF;		 
+      ELSIF (p_TABLA = 'EQUIPOS')  THEN        
+	         OPEN Cur_Mantenimiento2;
+			 FETCH Cur_Mantenimiento2 INTO v_DatoExiste;
+			 CLOSE Cur_Mantenimiento2;
+			 IF (v_DatoExiste IS NOT NULL) THEN
+	             p_RESULTADO := 1;
+			 ELSE    
+                 DELETE FROM EQUIPOS WHERE CODIGOEQUIPO = p_CONDICION;
+		     END IF;		 
+      ELSIF (p_TABLA = 'LISTAVALORES') THEN
+	         OPEN Cur_Equipos1;
+			 FETCH Cur_Equipos1 INTO v_DatoExiste;
+			 CLOSE Cur_Equipos1;
+			 IF (v_DatoExiste IS NOT NULL) THEN
+	             p_RESULTADO := 1;		     	 
+			 ELSE
+				 OPEN Cur_Equipos2;
+				 FETCH Cur_Equipos2 INTO v_DatoExiste;
+				 CLOSE Cur_Equipos2;
+				 IF (v_DatoExiste IS NOT NULL) THEN
+		             p_RESULTADO := 1;		     	 
+				 ELSE
+                     DELETE FROM LISTAVALORES WHERE CODIGO = p_CONDICION;
+				 END IF;	 
+			 END IF;		 
+      ELSIF (p_TABLA = 'MANTENIMIENTO') THEN
+             INSERT INTO RESPALDO SELECT * FROM MANTENIMIENTO WHERE CODIGOEQUIPO = p_CONDICION;
+             DELETE FROM MANTENIMIENTO WHERE CODIGOEQUIPO = p_CONDICION;             
+      END IF;
+      
+      COMMIT;
+      
+      EXCEPTION
+        WHEN OTHERS THEN
+        p_RESULTADO := SUBSTR(SQLCODE,1,20);
+
+END spr_DRegistro;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_IUEQUIPOS;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_IUEquipos(
+p_CODIGOEQUIPO          IN EQUIPOS.CODIGOEQUIPO%TYPE,
+p_NOMBREEQUIPO          IN EQUIPOS.NOMBREEQUIPO%TYPE,
+p_CODIGOMARCA           IN EQUIPOS.CODIGOMARCA%TYPE,
+p_SERIE                 IN EQUIPOS.SERIE%TYPE,
+p_CODIGOLINEA           IN EQUIPOS.CODIGOLINEA%TYPE,
+p_LUBRICACION           IN EQUIPOS.LUBRICACION%TYPE,
+p_USUARIOCONECTADO      IN EQUIPOS.INGRESADOPOR%TYPE,
+p_RESULTADO             OUT NUMERIC )
+
+IS
+
+v_SerieNueva  EQUIPOS.SERIE%TYPE:= null;
+v_SerieActual EQUIPOS.SERIE%TYPE:= null;
+
+CURSOR Cur_Serie IS
+SELECT SERIE
+FROM   EQUIPOS
+WHERE  SERIE  = p_SERIE;
+
+
+BEGIN
+      p_RESULTADO := 0;
+	  
+	  -- Validar que no exista la serie que envían como parámetro
+		 OPEN Cur_Serie;
+		 FETCH Cur_Serie INTO v_SerieNueva;
+		 CLOSE Cur_Serie;
+         
+	  IF (p_CODIGOEQUIPO = 0) THEN
+	        
+         IF (v_SerieNueva IS NOT NULL) THEN
+		     p_RESULTADO := 1;
+	  
+	     ELSE		 
+		
+			 INSERT INTO EQUIPOS(
+		                 CODIGOEQUIPO,
+		                 NOMBREEQUIPO, 
+		                 CODIGOMARCA,  
+		                 SERIE, 
+		                 CODIGOLINEA,  
+		                 LUBRICACION, 
+		                 INGRESADOPOR, 
+		                 MODIFICADOPOR)
+		     VALUES(
+		                  SQ_EQUIPOS.NEXTVAL, 
+		                  p_NOMBREEQUIPO, 
+		                  p_CODIGOMARCA, 
+		                  p_SERIE, 
+		                  p_CODIGOLINEA, 
+		                  p_LUBRICACION, 
+		                  p_USUARIOCONECTADO, 
+		                  p_USUARIOCONECTADO);
+		                       
+		                  COMMIT;
+		 END IF;				  
+        
+		ELSE
+		       SELECT SERIE INTO v_SerieActual FROM EQUIPOS WHERE CODIGOEQUIPO = p_CODIGOEQUIPO;
+			   IF ((v_SerieNueva IS NOT NULL) AND (v_SerieActual <> p_SERIE)) THEN
+			       p_RESULTADO := 1;
+	  
+	           ELSE		 
+		
+	               UPDATE EQUIPOS SET             
+	               NOMBREEQUIPO       = p_NOMBREEQUIPO,  
+	               CODIGOMARCA        = p_CODIGOMARCA, 
+	               SERIE              = p_SERIE, 
+	               CODIGOLINEA        = p_CODIGOLINEA, 
+	               LUBRICACION          = p_LUBRICACION,
+	               MODIFICADOPOR      = p_USUARIOCONECTADO,
+	               FECHAMODIFICACION  = SYSDATE
+	               WHERE CODIGOEQUIPO = p_CODIGOEQUIPO;
+	               
+	               COMMIT;
+				   
+               END IF;               
+        END IF;               
+        
+        EXCEPTION
+        WHEN OTHERS THEN
+        p_RESULTADO := SUBSTR(SQLCODE,1,20);
+    
+             
+END spr_IUEquipos;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_IULISTAVALORES;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_IUListaValores(
+p_CODIGO            IN LISTAVALORES.CODIGO%TYPE,
+p_NOMBRE            IN LISTAVALORES.NOMBRE%TYPE,
+p_DESCRIPCION       IN LISTAVALORES.DESCRIPCION%TYPE,
+p_TIPO              IN LISTAVALORES.TIPO%TYPE,
+p_USUARIOCONECTADO  IN LISTAVALORES.INGRESADOPOR%TYPE,
+p_RESULTADO         OUT NUMERIC)
+
+IS
+
+v_NombreNuevo  LISTAVALORES.NOMBRE%TYPE:= null;
+v_NombreActual LISTAVALORES.NOMBRE%TYPE:= null;
+
+CURSOR Cur_Nombre IS
+SELECT NOMBRE
+FROM   LISTAVALORES
+WHERE  NOMBRE  = p_NOMBRE;
+
+BEGIN
+      p_RESULTADO := 0;
+	  
+      -- Validar que no exista el nombre que envían como parámetro
+	  OPEN Cur_Nombre;
+	  FETCH Cur_Nombre INTO v_NombreNuevo;
+	  CLOSE Cur_Nombre;
+         
+      IF (p_CODIGO = 0) THEN
+	      
+		    
+         IF (v_NombreNuevo IS NOT NULL) THEN
+		     p_RESULTADO := 1;
+	  
+	     ELSE		 
+        
+	           INSERT INTO LISTAVALORES(
+	                       CODIGO,
+	                       NOMBRE, 
+	                       DESCRIPCION, 
+	                       TIPO, 
+	                       INGRESADOPOR, 
+	                       MODIFICADOPOR)
+	           VALUES(
+	                       SQ_LISTAVALORES.NEXTVAL,
+	                       p_NOMBRE, 
+	                       p_DESCRIPCION, 
+	                       p_TIPO, 
+	                       p_USUARIOCONECTADO, 
+	                       p_USUARIOCONECTADO);
+	                       
+	                       COMMIT;
+		 END IF;		
+		 		   
+      ELSE
+	         SELECT NOMBRE INTO v_NombreActual FROM LISTAVALORES WHERE CODIGO = p_CODIGO;
+             IF ((v_NombreNuevo IS NOT NULL) AND (v_NombreActual <> p_NOMBRE)) THEN
+			      p_RESULTADO := 1;
+	  
+	         ELSE		 
+		
+	             UPDATE LISTAVALORES SET             
+	             NOMBRE               = p_NOMBRE,  
+	             DESCRIPCION       = p_DESCRIPCION, 
+	             MODIFICADOPOR     = p_USUARIOCONECTADO,
+	             FECHAMODIFICACION = SYSDATE
+	             WHERE CODIGO       = p_CODIGO;
+	        
+	             COMMIT;
+             END IF;
+      END IF;
+                    
+      EXCEPTION
+      WHEN OTHERS THEN
+      p_RESULTADO := SUBSTR(SQLCODE,1,20);
+    
+             
+END spr_IUListaValores;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_IUMANTENIMIENTO;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_IUMantenimiento(
+p_ACCION                      IN VARCHAR2,
+p_CODIGOEQUIPO           IN MANTENIMIENTO.CODIGOEQUIPO%TYPE,
+p_DOCUMENTO               IN MANTENIMIENTO.DOCUMENTO%TYPE,
+p_FECHA                        IN MANTENIMIENTO.FECHA%TYPE,
+p_OBSERVACIONES         IN MANTENIMIENTO.OBSERVACIONES%TYPE,
+p_USUARIOCONECTADO  IN MANTENIMIENTO.INGRESADOPOR%TYPE,
+p_RESULTADO                OUT NUMERIC )
+  
+IS
+
+CURSOR Cur_Mantenimiento IS
+SELECT DOCUMENTO, FECHA
+FROM MANTENIMIENTO 
+WHERE DOCUMENTO = p_DOCUMENTO 
+AND FECHA = p_FECHA;
+
+v_OperarioActual MANTENIMIENTO.DOCUMENTO%TYPE:= null;
+v_OperarioNuevo  MANTENIMIENTO.DOCUMENTO%TYPE:= null;
+v_FechaActual    MANTENIMIENTO.FECHA%TYPE:= null;
+v_FechaNueva     MANTENIMIENTO.FECHA%TYPE:= null;
+
+
+BEGIN
+      p_RESULTADO := 0;
+
+	  -- Validar que no exista el nombre que envían como parámetro
+	  OPEN Cur_Mantenimiento;
+	  FETCH Cur_Mantenimiento INTO v_OperarioNuevo, v_FechaNueva;
+	  CLOSE Cur_Mantenimiento;
+			 		 
+			 	 
+      IF (p_ACCION = 'I') THEN
+	  
+         IF (v_OperarioNuevo IS NOT NULL AND v_FechaNueva IS NOT NULL) THEN 
+		     p_RESULTADO := 1;
+		 ELSE	 
+		        INSERT INTO MANTENIMIENTO(
+		                    
+							CODIGOEQUIPO, 
+		                    DOCUMENTO, 
+		                    FECHA, 
+		                    OBSERVACIONES, 
+		                    INGRESADOPOR, 
+		                    MODIFICADOPOR)
+		           VALUES(
+		                    p_CODIGOEQUIPO, 
+		                    p_DOCUMENTO, 
+		                    p_FECHA,
+		                    p_OBSERVACIONES, 
+		                    p_USUARIOCONECTADO,
+		                    p_USUARIOCONECTADO);
+		                    
+							COMMIT;
+	     END IF;
+		  						   
+        ELSE	
+		     IF (v_OperarioNuevo IS NOT NULL) THEN 	   
+		        SELECT DOCUMENTO, FECHA INTO v_OperarioActual, v_FechaActual FROM MANTENIMIENTO WHERE CODIGOEQUIPO = p_CODIGOEQUIPO;
+			    IF (v_OperarioActual <> p_DOCUMENTO) THEN
+			       p_RESULTADO := 1;
+		        ELSIF ((v_OperarioActual = p_DOCUMENTO) AND (v_FechaActual <> p_FECHA)) THEN
+			          p_RESULTADO := 1;	
+			    ELSE
+	                UPDATE MANTENIMIENTO SET                          
+	                DOCUMENTO          = p_DOCUMENTO,
+	                FECHA              = p_FECHA,
+	                OBSERVACIONES      = p_OBSERVACIONES,
+	                FECHAMODIFICACION  = SYSDATE
+	                WHERE CODIGOEQUIPO = p_CODIGOEQUIPO;   
+	            
+	                COMMIT;		      		  
+			    END IF;	  
+		     ELSE
+	                UPDATE MANTENIMIENTO SET                          
+	                DOCUMENTO          = p_DOCUMENTO,
+	                FECHA              = p_FECHA,
+	                OBSERVACIONES      = p_OBSERVACIONES,
+	                FECHAMODIFICACION  = SYSDATE
+	                WHERE CODIGOEQUIPO = p_CODIGOEQUIPO;   
+	            
+	                COMMIT;
+		     END IF;	 
+                              
+        END IF;               
+        
+        EXCEPTION
+        WHEN OTHERS THEN
+        p_RESULTADO := SUBSTR(SQLCODE,1,20);
+    
+             
+END spr_IUMantenimiento;
+
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_IUOPERARIOS;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_IUOperarios(
+p_ACCION                  IN  VARCHAR2,
+p_DOCUMENTO               IN OPERARIOS.DOCUMENTO%TYPE,
+p_NOMBRES                 IN OPERARIOS.NOMBRES%TYPE,
+p_APELLIDOS               IN OPERARIOS.APELLIDOS%TYPE,
+p_TELEFONO                IN OPERARIOS.TELEFONO%TYPE,
+p_CORREO                  IN OPERARIOS.CORREO%TYPE,
+p_FOTO                    IN OPERARIOS.FOTO%TYPE,
+p_USUARIOCONECTADO        IN OPERARIOS.INGRESADOPOR%TYPE,
+p_RESULTADO               OUT NUMERIC )
+
+IS
+
+v_Documento OPERARIOS.DOCUMENTO%TYPE:= null;
+
+CURSOR Cur_Documento IS
+SELECT DOCUMENTO
+FROM   OPERARIOS
+WHERE  DOCUMENTO  = p_DOCUMENTO;
+
+
+BEGIN
+      p_RESULTADO := 0;
+
+      IF (p_ACCION = 'I') THEN
+	     -- Validar que no exista el documento que envían como parámetro
+		 OPEN Cur_Documento;
+		 FETCH Cur_Documento INTO v_Documento;
+		 CLOSE Cur_Documento;
+            
+         IF (v_Documento IS NOT NULL) THEN
+		     p_RESULTADO := 1;
+	  
+	     ELSE		
+		  
+		       INSERT INTO OPERARIOS(
+		                       DOCUMENTO, 
+		                       NOMBRES, 
+		                       APELLIDOS, 
+		                       TELEFONO, 
+		                       CORREO,	
+		                       CLAVE,	                       
+		                       FOTO, 
+		                       INGRESADOPOR, 
+		                       MODIFICADOPOR)
+		           VALUES(
+		                       p_DOCUMENTO, 
+		                       INITCAP(p_NOMBRES), 
+		                       INITCAP(p_APELLIDOS), 
+		                       p_TELEFONO, 
+		                       p_CORREO,
+		                       p_DOCUMENTO,
+		                       p_FOTO, 
+		                       p_USUARIOCONECTADO,
+		                       p_USUARIOCONECTADO);
+		                       
+	                       COMMIT;
+	     END IF;				   
+							   
+        ELSE
+               UPDATE OPERARIOS SET             
+               NOMBRES            = INITCAP(p_NOMBRES),  
+               APELLIDOS          = INITCAP(p_APELLIDOS), 
+               TELEFONO           = p_TELEFONO, 
+               CORREO             = p_CORREO,
+               FOTO               = p_FOTO,
+               MODIFICADOPOR      = p_USUARIOCONECTADO,
+               FECHAMODIFICACION  = SYSDATE
+               WHERE DOCUMENTO    = p_DOCUMENTO;
+               
+               COMMIT;
+                              
+        END IF;               
+        
+        EXCEPTION
+        WHEN OTHERS THEN
+        p_RESULTADO := SUBSTR(SQLCODE,1,20);
+    
+             
+END spr_IUOperarios;
+/
+
+
+DROP PROCEDURE CONTROLMANTENIMIENTODB.SPR_UCAMBIOCLAVE;
+
+CREATE OR REPLACE PROCEDURE CONTROLMANTENIMIENTODB.spr_UCambioClave
+(
+  p_DOCUMENTO             IN  OPERARIOS.DOCUMENTO%TYPE,
+  p_CLAVE_ANTERIOR        IN  OPERARIOS.CLAVE%TYPE,
+  p_CLAVE_NUEVA           IN  OPERARIOS.CLAVE%TYPE,      
+  p_RESULTADO             OUT NUMERIC
+)
+
+AS    
+
+v_DatoExiste OPERARIOS.CLAVE%TYPE:= null;
+
+BEGIN
+
+      p_RESULTADO := 0;    
+      
+      SELECT CLAVE INTO v_DatoExiste FROM OPERARIOS WHERE DOCUMENTO = p_DOCUMENTO;
+      IF (v_DatoExiste <> p_CLAVE_ANTERIOR) THEN
+          p_RESULTADO := 1;    
+      ELSE
+          
+          UPDATE OPERARIOS SET             
+          CLAVE                = p_CLAVE_NUEVA,
+          MODIFICADOPOR        = p_DOCUMENTO,
+          FECHAMODIFICACION    = SYSDATE
+          WHERE DOCUMENTO   = p_DOCUMENTO;
+          
+          COMMIT;    
+      END IF;
+  
+      
+      EXCEPTION
+      WHEN OTHERS THEN
+      p_RESULTADO := SUBSTR(SQLCODE,1,20);
+        
+END  spr_UCambioClave;
+/
+
+
+CREATE SEQUENCE CONTROLMANTENIMIENTODB".SQ_LISTAVALORES
+ INCREMENT BY 1
+ MAXVALUE 9999999999999999999999999999
+ MINVALUE 1
+ NOCACHE;
+
+CREATE SEQUENCE CONTROLMANTENIMIENTODB.SQ_EQUIPOS
+ INCREMENT BY 1
+ MAXVALUE 9999999999999999999999999999
+ MINVALUE 1
+ NOCACHE;
+
+INSERT INTO OPERARIOS (DOCUMENTO, NOMBRES, APELLIDOS, TELEFONO, CORREO, CLAVE, PERFIL, INGRESADOPOR, MODIFICADOPOR) 
+VALUES ('123456', 'Admin', 'Admin', '1234567', 'correo@yahoo.com', 'laclave', 1, '123456', '123456');
+
+Commit;
+
+INSERT INTO LISTAVALORES(CODIGO,NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES(SQ_LISTAVALORES.NEXTVAL,'SIEMENS','MARCAS','PROVEEDOR SIEMENS','123456','123456');
+INSERT INTO LISTAVALORES(CODIGO,NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES(SQ_LISTAVALORES.NEXTVAL,'RICOH','MARCAS','PROVEEDOR RICOH','123456','123456');
+INSERT INTO LISTAVALORES(CODIGO,NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES(SQ_LISTAVALORES.NEXTVAL,'ACABADOS','LINEAS','PLANTA DE ACABADOS','123456','123456');
+INSERT INTO LISTAVALORES(CODIGO,NOMBRE,TIPO,DESCRIPCION,INGRESADOPOR,MODIFICADOPOR) VALUES(SQ_LISTAVALORES.NEXTVAL,'ENSAMBLE','LINEAS','PLANTA DE ENSAMBLE','123456','123456');
+
+INSERT INTO EQUIPOS (CODIGOEQUIPO,NOMBREEQUIPO,CODIGOMARCA,SERIE,CODIGOLINEA,LUBRICACION,INGRESADOPOR,MODIFICADOPOR) VALUES (SQ_EQUIPOS.NEXTVAL,'EQUIPO DESPALETIZADOR',1,'EDPA2045',3,1,'123456','123456');
+INSERT INTO EQUIPOS (CODIGOEQUIPO,NOMBREEQUIPO,CODIGOMARCA,SERIE,CODIGOLINEA,LUBRICACION,INGRESADOPOR,MODIFICADOPOR) VALUES (SQ_EQUIPOS.NEXTVAL,'EQUIPO DESPRESURIZADOR',2,'EDPU2087',4,1,'123456','123456');
+
+Commit;
