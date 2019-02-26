@@ -4,9 +4,10 @@ Control Mantenimiento Equipos en NET versiones Desktop y Web (VB y C#)
 
 Bien esta es la misma aplicación para control de mantenimiento de equipos que hay montada en Java y PHP.
 
-Acá en este repositorio quedan tres versiones dos Desktop en C# (ControlMantenimiento-NetDesktop) y VB (ControlMantenimiento-NetDesktopVB). 
+Acá en este repositorio quedan tres versiones dos Desktop en C# (ControlMantenimiento-NetDesktop.zip) 
+y en VB (ControlMantenimiento-NetDesktopVB.zip). 
 
-Y la versión Web hecha con WebForms en C# (ControlMantenimiento-NetWeb).
+Y la versión Web hecha con WebForms en C# (ControlMantenimiento-NetWeb.zip).
 
 También están adjuntos los scripts en Oracle y MySQL, si se desea trabajar con estos dos motores, y se encuentra la capa DAL aparte como 
 debe quedar en cada caso dependiendo del proveedor de datos elegido.
