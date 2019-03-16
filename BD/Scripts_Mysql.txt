@@ -498,56 +498,6 @@ BEGIN
       
 END;
 
-DROP PROCEDURE IF EXISTS controlmantenimientodb.spr_CValidarExistenciaDatos;
-CREATE PROCEDURE controlmantenimientodb.`spr_CValidarExistenciaDatos`(
-IN p_TABLA      VARCHAR(50),
-OUT p_RESULTADO NUMERIC(8))
-BEGIN
-     IF (p_TABLA = 'OPERARIOS') THEN
-          SELECT COUNT(*) INTO p_RESULTADO FROM OPERARIOS;
-     ELSEIF (p_TABLA = 'EQUIPOS') THEN     
-            SELECT COUNT(*) INTO p_RESULTADO FROM EQUIPOS
-              WHERE  (NOT EXISTS
-                          (SELECT     CODIGOEQUIPO
-                            FROM       MANTENIMIENTO
-                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO)));
-
-     ELSEIF (p_TABLA = 'CLINEAS') THEN
-            SELECT COUNT(*) INTO p_RESULTADO FROM CLINEAS;
-     ELSEIF (p_TABLA = 'CMARCAS') THEN
-             BEGIN
-                  SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'MARCAS';
-                  IF (p_RESULTADO = 0)  THEN
-                      SET p_RESULTADO = -1;
-                  ELSE
-                      SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'LINEAS';
-                      IF (p_RESULTADO = 0)  THEN
-                          SET p_RESULTADO = -2;
-                      END IF;
-                  END IF;    
-            END;
-     ELSEIF (p_TABLA = 'CPROGRAMAREQUIPOS')  THEN
-             BEGIN
-                  SELECT COUNT(*) INTO p_RESULTADO FROM CPROGRAMAREQUIPOS;
-                  IF (p_RESULTADO = 0)  THEN
-                      SET p_RESULTADO = -1;
-                  ELSE
-                      SELECT COUNT(*) INTO p_RESULTADO FROM OPERARIOS;
-                      IF (p_RESULTADO = 0)  THEN
-                          SET p_RESULTADO = -2;
-                      END IF;
-                  END IF;    
-             END;     
-     ELSEIF (p_TABLA = 'CPROGRAMACION') THEN 
-            SELECT COUNT(*) INTO p_RESULTADO FROM CPROGRAMACION;
-     ELSEIF (p_TABLA = 'RESPALDO') THEN
-            SELECT COUNT(*) INTO p_RESULTADO FROM RESPALDO;
-      ELSEIF (p_TABLA = 'LINEAS') THEN
-            SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'LINEAS';
-     ELSEIF (p_TABLA = 'MARCAS') THEN
-            SELECT COUNT(*) INTO p_RESULTADO FROM LISTAVALORES WHERE TIPO = 'MARCAS';           
-     END IF;
-END;
 
 DROP PROCEDURE IF EXISTS controlmantenimientodb.spr_CCargarListado;
 CREATE PROCEDURE controlmantenimientodb.`spr_CCargarListado`(

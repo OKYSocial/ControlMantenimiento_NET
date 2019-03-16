@@ -533,58 +533,6 @@ BEGIN CATCH
       RETURN @P_RESULTADO
 END CATCH
 
-GO
-CREATE PROCEDURE spr_CValidarExistenciaDatos
-(
-  @p_TABLA        varchar(20),
-  @p_RESULTADO    INT OUT
-)
-
-AS
-
-BEGIN
-      SET @p_RESULTADO = -1
-	  IF (@p_TABLA = 'OPERARIOS')
-          SELECT @p_RESULTADO = COUNT(*) FROM OPERARIOS 
-      ELSE IF (@p_TABLA = 'EQUIPOS')  
-               SELECT @p_RESULTADO = COUNT(*) FROM EQUIPOS
-               WHERE NOT EXISTS
-                          (SELECT     CODIGOEQUIPO
-                            FROM       MANTENIMIENTO
-                            WHERE     (EQUIPOS.CODIGOEQUIPO = CODIGOEQUIPO))
-      ELSE IF (@p_TABLA = 'CPROGRAMAREQUIPOS')                     
-	 		  BEGIN
-				   SELECT @p_RESULTADO = COUNT(*) FROM CPROGRAMAREQUIPOS 
-              	   IF (@p_RESULTADO = 0)
-				 	   SET @p_RESULTADO = -1    
-				   ELSE
-                       BEGIN
-   		  				    SELECT @p_RESULTADO = COUNT(*) FROM OPERARIOS
-						    IF (@p_RESULTADO = 0)
-					 		    SET @p_RESULTADO = -2  
-                       END
-              END       
-     ELSE IF (@p_TABLA = 'CPROGRAMACION')         
-	 	      SELECT @p_RESULTADO = COUNT(*) FROM CPROGRAMACION     
-     ELSE IF (@p_TABLA = 'RESPALDO')        
-	 	      SELECT @p_RESULTADO = COUNT(*) FROM RESPALDO 
-     ELSE IF (@p_TABLA = 'CMARCAS')        
-              BEGIN
-	 			  SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'MARCAS' 
-				  IF (@p_RESULTADO = 0)
-					  SET @p_RESULTADO = -1
-				  ELSE
-                      BEGIN  
-       					   SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'LINEAS' 
-						   IF (@p_RESULTADO = 0)
-						 	   SET @p_RESULTADO = -2
-                      END    
-              END           
-     ELSE IF (@p_TABLA = 'MARCAS')    
-              SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'MARCAS'    
-     ELSE IF (@p_TABLA = 'LINEAS')        
-              SELECT @p_RESULTADO = COUNT(*) FROM LISTAVALORES WHERE TIPO = 'LINEAS' 
-END
 
 GO
 CREATE PROCEDURE spr_CCargarCombosListas(		
